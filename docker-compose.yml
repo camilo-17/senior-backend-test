@@ -15,20 +15,22 @@ services:
       - ./db/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
       - db_data:/var/lib/mysql
 
-  customers-api:
-    build: ./customers-api
+  orders-api:
+    build: ./orders-api
     ports:
-      - "3001:3001"
+      - "3002:3002"
     environment:
       - DB_HOST=db
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=backend_test
       - DB_PORT=3306
-      - PORT=3001
+      - PORT=3002
       - SERVICE_TOKEN=secret-service-token
+      - CUSTOMERS_API_BASE=http://customers-api:3001
     depends_on:
       - db
+      - customers-api
 
 volumes:
   db_data:
