@@ -1,6 +1,10 @@
 .env
 .env.example
 **/.env
-**/.env.example
-
+**/node_modules
+customers-api/node_modules
+orders-api/node_modules
+lambda-orchestrator/node_modules
+.DS_Store
+npm-debug.log
 backend-test.postman_collection.json
