@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { Database } from './database';
+import customersRouter from './routes/customers';
 
 dotenv.config();
 
@@ -8,6 +9,8 @@ const app = express();
 const db = new Database();
 
 app.use(express.json());
+
+app.use('/customers', customersRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

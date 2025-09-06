@@ -26,6 +26,7 @@ services:
       - DB_NAME=backend_test
       - DB_PORT=3306
       - PORT=3001
+      - SERVICE_TOKEN=secret-service-token
     depends_on:
       - db
 
