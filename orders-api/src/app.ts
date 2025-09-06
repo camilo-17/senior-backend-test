@@ -24,3 +24,8 @@ app.listen(PORT, async () => {
   await db.connect();
   console.log(`Orders API listening on port ${PORT}`);
 });
+
+app.use((error: any, req: any, res: any, next: any) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({ error: 'Internal server error' });
+});

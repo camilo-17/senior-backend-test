@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import 'dotenv/config';
 
 export class Database {
   private connection: mysql.Connection | null = null;

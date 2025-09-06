@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import 'dotenv/config';
 import { Database } from '../database';
 
 const router = Router();
