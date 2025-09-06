@@ -112,4 +112,104 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.post('/:id/confirm', async (req, res, next) => {
+  const { id } = req.params;
+  const idempotencyKey = req.headers['x-idempotency-key'] as string;
+  if (!idempotencyKey) {
+    return res.status(400).json({ error: 'X-Idempotency-Key header required' });
+  }
+
+  try {
+    const conn = await db.connect();
+    await conn.beginTransaction();
+
+    const existingOrder = await conn.execute('SELECT * FROM orders WHERE idempotency_key = ?', [idempotencyKey]);
+    if ((existingOrder as any[])[0].length > 0) {
+      const order = (existingOrder as any[])[0][0];
+      const response = JSON.parse(order.confirmation_response);
+      await conn.commit();
+      return res.status(200).json(response);
+    }
+
+    const orderRows = await conn.execute('SELECT * FROM orders WHERE id = ?', [id]);
+    if ((orderRows as any[])[0].length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = (orderRows as any[])[0][0];
+    if (order.status !== 'CREATED') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Order cannot be confirmed' });
+    }
+
+    await conn.execute('UPDATE orders SET status = ?, idempotency_key = ? WHERE id = ?', ['CONFIRMED', idempotencyKey, id]);
+
+    const itemRows = await conn.execute('SELECT * FROM order_items WHERE order_id = ?', [id]);
+    const items = (itemRows as any[])[0];
+
+    const response = {
+      success: true,
+      order: {
+        id: order.id,
+        status: 'CONFIRMED',
+        total_cents: order.total_cents,
+        items: items
+      }
+    };
+
+    await conn.execute('UPDATE orders SET confirmation_response = ? WHERE id = ?', [JSON.stringify(response), id]);
+
+    await conn.commit();
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/cancel', async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    const conn = await db.connect();
+    await conn.beginTransaction();
+
+    const orderRows = await conn.execute('SELECT * FROM orders WHERE id = ?', [id]);
+    if ((orderRows as any[])[0].length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = (orderRows as any[])[0][0];
+
+    if (order.status === 'CANCELED') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Order already canceled' });
+    }
+
+    if (order.status === 'CREATED') {
+      await conn.execute('UPDATE orders SET status = ? WHERE id = ?', ['CANCELED', id]);
+      const itemRows = await conn.execute('SELECT * FROM order_items WHERE order_id = ?', [id]);
+      const items = (itemRows as any[])[0];
+      for (const item of items) {
+        await conn.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.product_id]);
+      }
+    } else if (order.status === 'CONFIRMED') {
+      const timeDiff = await conn.execute('SELECT TIMESTAMPDIFF(MINUTE, created_at, NOW()) as diff FROM orders WHERE id = ?', [id]);
+      const diff = (timeDiff as any[])[0][0].diff;
+      if (diff > 10) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Order cannot be canceled after 10 minutes' });
+      }
+      await conn.execute('UPDATE orders SET status = ? WHERE id = ?', ['CANCELED', id]);
+    } else {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Order status invalid for cancel' });
+    }
+
+    await conn.commit();
+    res.status(200).json({ message: 'Order canceled' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

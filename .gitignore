@@ -3,4 +3,4 @@
 **/.env
 **/.env.example
 
-./backend-test.postman_collection.json
+backend-test.postman_collection.json

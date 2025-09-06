@@ -1,4 +1,13 @@
--- Schema for backend test database
+-- Schema for backeCREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    status ENUM('CREATED','CONFIRMED','CANCELED') DEFAULT 'CREATED',
+    total_cents INT DEFAULT 0,
+    idempotency_key VARCHAR(255),
+    confirmation_response JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);database
 
 CREATE TABLE customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,14 +44,4 @@ CREATE TABLE order_items (
     subtotal_cents INT NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (product_id) REFERENCES products(id)
-);
-
-CREATE TABLE idempotency_keys (
-    `key` VARCHAR(255) PRIMARY KEY,
-    target_type VARCHAR(50) NOT NULL,
-    target_id INT,
-    status VARCHAR(50),
-    response_body JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP
 );
